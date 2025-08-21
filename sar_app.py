@@ -2,9 +2,10 @@ import sys, time, socket
 import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout, QLabel,
-    QHBoxLayout, QGraphicsView, QGraphicsScene
+    QHBoxLayout, QSlider, QGroupBox, QRadioButton, QGraphicsView, QGraphicsScene
 )
 from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtCore import Qt
 
 # --------------------------------------------------
 # GPIO setup (with PC mock fallback)
@@ -19,6 +20,12 @@ except ImportError:
         def output(*a, **kw): pass
         def input(*a, **kw): return 1
         def cleanup(*a, **kw): pass
+        def PWM(*a, **kw):
+            class _PWM:
+                def start(self, duty): pass
+                def ChangeDutyCycle(self, duty): pass
+                def stop(self): pass
+            return _PWM()
     GPIO = MockGPIO()
 
 MOTOR_X_PIN = 12
@@ -32,42 +39,28 @@ GPIO.setup(MOTOR_Y_PIN, GPIO.OUT)
 GPIO.setup(LIMIT_X_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(LIMIT_Y_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-position = {"x": 0, "y": 0}
+pwm_x = GPIO.PWM(MOTOR_X_PIN, 1000)
+pwm_y = GPIO.PWM(MOTOR_Y_PIN, 1000)
+pwm_x.start(0)
+pwm_y.start(0)
 
-def step_motor(pin, steps=100, delay=0.002):
-    for i in range(steps):
-        GPIO.output(pin, GPIO.HIGH)
-        time.sleep(delay)
-        GPIO.output(pin, GPIO.LOW)
-        time.sleep(delay)
+def set_motor(axis, duty, direction):
+    """Set PWM duty cycle with direction."""
+    # You could invert pins here if using H-bridge or direction pins
+    if axis == "x":
+        pwm_x.ChangeDutyCycle(duty)
+    elif axis == "y":
+        pwm_y.ChangeDutyCycle(duty)
 
-def move_x(steps=200):
-    if GPIO.input(LIMIT_X_PIN) == GPIO.LOW:
-        return "X limit reached"
-    step_motor(MOTOR_X_PIN, steps)
-    position["x"] += steps
-    return f"X pos: {position['x']}"
-
-def move_y(steps=200):
-    if GPIO.input(LIMIT_Y_PIN) == GPIO.LOW:
-        return "Y limit reached"
-    step_motor(MOTOR_Y_PIN, steps)
-    position["y"] += steps
-    return f"Y pos: {position['y']}"
-
-def home_motors():
-    while GPIO.input(LIMIT_X_PIN) == GPIO.HIGH:
-        step_motor(MOTOR_X_PIN, 1)
-    while GPIO.input(LIMIT_Y_PIN) == GPIO.HIGH:
-        step_motor(MOTOR_Y_PIN, 1)
-    position["x"] = position["y"] = 0
-    return "Motors homed"
+def stop_motors():
+    pwm_x.ChangeDutyCycle(0)
+    pwm_y.ChangeDutyCycle(0)
 
 # --------------------------------------------------
 # SAR Data Capture (DCA1000 via UDP)
 # --------------------------------------------------
-UDP_IP = "192.168.33.30"   # DCA1000 default IP
-UDP_PORT = 4098            # data port
+UDP_IP = "192.168.33.30"
+UDP_PORT = 4098
 PACKET_SIZE = 4096
 
 def capture_sar_data(duration=2.0):
@@ -110,30 +103,65 @@ def process_sar_data(raw_data):
 # GUI
 # --------------------------------------------------
 class SARApp(QWidget):
-    def _init_(self):
-        super()._init_()
+    def __init__(self):
+        super().__init__()
         self.setWindowTitle("SAR Controller")
         self.layout = QVBoxLayout()
 
-        # Motor controls
+        # ---------------- Motor Controls ----------------
+        motor_group = QGroupBox("Motor Control")
         motor_layout = QHBoxLayout()
-        self.btn_x = QPushButton("Move X Axis")
-        self.btn_y = QPushButton("Move Y Axis")
-        self.btn_home = QPushButton("Home Motors")
-        motor_layout.addWidget(self.btn_x)
-        motor_layout.addWidget(self.btn_y)
-        motor_layout.addWidget(self.btn_home)
-        self.layout.addLayout(motor_layout)
 
-        # SAR controls
+        # X Axis
+        x_group = QGroupBox("X Axis")
+        x_layout = QVBoxLayout()
+        self.slider_x = QSlider(Qt.Horizontal)
+        self.slider_x.setRange(0, 100)
+        self.slider_x.setValue(0)
+        self.label_x = QLabel("Speed: 0%")
+        self.dir_x_fwd = QRadioButton("Forward")
+        self.dir_x_rev = QRadioButton("Reverse")
+        self.dir_x_fwd.setChecked(True)
+        self.slider_x.valueChanged.connect(self.update_x)
+        x_layout.addWidget(self.label_x)
+        x_layout.addWidget(self.slider_x)
+        x_layout.addWidget(self.dir_x_fwd)
+        x_layout.addWidget(self.dir_x_rev)
+        x_group.setLayout(x_layout)
+
+        # Y Axis
+        y_group = QGroupBox("Y Axis")
+        y_layout = QVBoxLayout()
+        self.slider_y = QSlider(Qt.Horizontal)
+        self.slider_y.setRange(0, 100)
+        self.slider_y.setValue(0)
+        self.label_y = QLabel("Speed: 0%")
+        self.dir_y_fwd = QRadioButton("Forward")
+        self.dir_y_rev = QRadioButton("Reverse")
+        self.dir_y_fwd.setChecked(True)
+        self.slider_y.valueChanged.connect(self.update_y)
+        y_layout.addWidget(self.label_y)
+        y_layout.addWidget(self.slider_y)
+        y_layout.addWidget(self.dir_y_fwd)
+        y_layout.addWidget(self.dir_y_rev)
+        y_group.setLayout(y_layout)
+
+        motor_layout.addWidget(x_group)
+        motor_layout.addWidget(y_group)
+        motor_group.setLayout(motor_layout)
+        self.layout.addWidget(motor_group)
+
+        # ---------------- SAR Controls ----------------
+        sar_group = QGroupBox("SAR Control")
         sar_layout = QHBoxLayout()
         self.btn_capture = QPushButton("Capture SAR")
         self.btn_process = QPushButton("Process SAR")
         sar_layout.addWidget(self.btn_capture)
         sar_layout.addWidget(self.btn_process)
-        self.layout.addLayout(sar_layout)
+        sar_group.setLayout(sar_layout)
+        self.layout.addWidget(sar_group)
 
-        # Display
+        # ---------------- Status + Image ----------------
         self.label_status = QLabel("Ready")
         self.layout.addWidget(self.label_status)
 
@@ -143,28 +171,25 @@ class SARApp(QWidget):
 
         self.setLayout(self.layout)
 
-        # Connect
-        self.btn_x.clicked.connect(self.move_x)
-        self.btn_y.clicked.connect(self.move_y)
-        self.btn_home.clicked.connect(self.home)
+        # Connect buttons
         self.btn_capture.clicked.connect(self.capture)
         self.btn_process.clicked.connect(self.process)
 
         self.raw_data = None
         self.processed = None
 
-    def move_x(self):
-        msg = move_x()
-        self.label_status.setText(msg)
+    # Motor handlers
+    def update_x(self, value):
+        self.label_x.setText(f"Speed: {value}%")
+        direction = "fwd" if self.dir_x_fwd.isChecked() else "rev"
+        set_motor("x", value, direction)
 
-    def move_y(self):
-        msg = move_y()
-        self.label_status.setText(msg)
+    def update_y(self, value):
+        self.label_y.setText(f"Speed: {value}%")
+        direction = "fwd" if self.dir_y_fwd.isChecked() else "rev"
+        set_motor("y", value, direction)
 
-    def home(self):
-        msg = home_motors()
-        self.label_status.setText(msg)
-
+    # SAR handlers
     def capture(self):
         self.raw_data = capture_sar_data()
         self.label_status.setText("Captured SAR data")
@@ -179,7 +204,7 @@ class SARApp(QWidget):
         pix = QPixmap.fromImage(qimg)
         self.scene.clear()
         self.scene.addPixmap(pix)
-        self.view.fitInView(self.scene.itemsBoundingRect(), 1)
+        self.view.fitInView(self.scene.itemsBoundingRect(), Qt.KeepAspectRatio)
         self.label_status.setText("Image displayed")
 
 # --------------------------------------------------
@@ -190,6 +215,6 @@ if __name__ == "__main__":
     window = SARApp()
     window.show()
     ret = app.exec_()
+    stop_motors()
     GPIO.cleanup()
-
     sys.exit(ret)
