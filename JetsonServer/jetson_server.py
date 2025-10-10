@@ -1,24 +1,7 @@
 import socket
 import threading
 import time
-
-try:
-    import Jetson.GPIO as GPIO
-except ImportError:
-    class MockGPIO:
-        BOARD = OUT = IN = HIGH = LOW = PUD_UP = None
-        def setmode(*a, **kw): pass
-        def setup(*a, **kw): pass
-        def output(*a, **kw): pass
-        def input(*a, **kw): return 1
-        def cleanup(*a, **kw): pass
-        def PWM(*a, **kw):
-            class _PWM:
-                def start(self, duty): pass
-                def ChangeDutyCycle(self, duty): pass
-                def stop(self): pass
-            return _PWM()
-    GPIO = MockGPIO()
+import Jetson.GPIO as GPIO
 
 # ---------------- GPIO Pins ----------------
 MOTOR_X_PIN = 32
