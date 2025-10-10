@@ -17,7 +17,6 @@ GPIO.setup(MOTOR_Y_PIN, GPIO.OUT)
 GPIO.setup(DIRECTION_X, GPIO.OUT)
 GPIO.setup(DIRECTION_Y, GPIO.OUT)
 GPIO.setup(LIMIT_PIN, GPIO.IN)
-GPIO.setup(SYNC_IN, GPIO.OUT)
 
 # ---------------- PWM setup ----------------
 FIXED_DUTY = 50  # Fixed speed
