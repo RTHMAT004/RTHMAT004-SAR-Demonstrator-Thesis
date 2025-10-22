@@ -2,8 +2,8 @@
 
 % Filename:     sar1D.m
 % Created By:   Matthew Rathbone
-% Version:      2.00
-% Edit date:    21/09/2025
+% Version:      1.00
+% Edit date:    22/10/2025
 
 %--------------------------------------------------------------------------
 
@@ -93,6 +93,7 @@ function [SRA_focused, rangeAxis, azAxis] = sar_RDA(cube, fs, fc, slope, dx)
     sarMag = sarMag ./ max(sarMag(:));
     sarDB = 20*log10(sarMag + eps);
 end
+
 
 
 
