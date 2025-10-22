@@ -1,8 +1,27 @@
+%--------------------------------------------------------------------------
+
+% Filename:     sort_data.m
+% Adapted from: Texas Instruments
+% Version:      2.00
+% Edit date:    21/09/2025
+
+%--------------------------------------------------------------------------
+
+% Description:
+
+% Sorts raw unsorted (int16) radar data into 3D radar data cube.
+
+% Modification of Matlab code provided in Texas Instrumentals
+% documentation which can be found at:
+% https://www.ti.com/lit/an/swra581b/swra581b.pdf
+
+%--------------------------------------------------------------------------
 function data_cube = sort_data(frame_data, nSamples, nChirps, nVChannels, real_or_complex)
-    % Sorts raw unsorted (int16) radar data into 3D radar data cube.
-    % Based off of TI MATLAB code.
-    %
-    % input  : frame_data -> Raw unsorted int16 radar data (vector).
+    % input  : frame_data -> Raw unsorted int16 radar data (vector)
+    % input  : nSamples -> Number of samples
+    % input  : nChirps -> Number of chirps
+    % input  : nVChannels -> Number of virtual channels
+    % input  : real_or_complex -> real = 0, complex = 1
     % output : data_cube  -> 3D array with dimensions [nSamples, nChirps, nVChannels]
 
     % Parameters
@@ -23,3 +42,4 @@ function data_cube = sort_data(frame_data, nSamples, nChirps, nVChannels, real_o
     % Permute to [nSamples, nChirps, nVChannels] to match Python output
     data_cube = permute(data_cube, [1, 3, 2]);
 end
+
