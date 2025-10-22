@@ -1,9 +1,9 @@
 %--------------------------------------------------------------------------
 
-% Filename:     sort_data.m
+% Filename:     rangeProfile.m
 % Created by:   Matthew Rathbone
-% Version:      2.00
-% Edit date:    21/09/2025
+% Version:      1.00
+% Edit date:    22/10/2025
 
 %--------------------------------------------------------------------------
 
@@ -36,6 +36,7 @@ function [spectrum, range] = rangeProfile(fileName, nSamples, nChirps, nFrames, 
         range = (c * f_b) / (2*K);  % Range in meters based on waveform parameters
     end
 end
+
 
 
 
