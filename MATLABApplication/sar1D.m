@@ -15,25 +15,31 @@
 
 clc; clear; close all;
 
-p = param_1();
+nSamples = ;% Number of samples
+nChirps = ; % Number of chirps
+nFrames = ; % Number of frames
+Fs = ; % Sampling frequency (Ms/s)
+Fc = ; % Carrier frequency (Hz)
+Slope = ; % Frequency slope (Hz/s)
+dx = ; % Increments of sampling in x-direction (m)
 
 for j = [4]
     fileName = '.bin';
     [folder, name, ext] = fileparts(fileName);
-    rawData = zeros(p.nSamples,p.nChirps,p.nFrames);
+    rawData = zeros(nSamples,nChirps,nFrames);
     unordered = readFromBinFile(p, fileName);
-    ordered = reshape(unordered, 256*2*128,p.nFrames);
+    ordered = reshape(unordered, 256*2*128,nFrames);
     
-    for i = 1:p.nFrames
+    for i = 1:nFrames
         frame = ordered(:,i);
-        frame = sort_data(frame, p.nSamples, p.nChirps, 1, 2); % sort_data assumes 1 frame
+        frame = sort_data(frame, nSamples, nChirps, 1, 2); % sort_data assumes 1 frame
         rawData(:,:,i) = frame;
       
     end
     
     dataCube = flipud(rawData); % Reorder datacube based on the ReorderEnable feature of the DCA1000's config file.
     
-    [sarDB, rangeAxis, x_axis] = sar_RDA(dataCube,p.Fs,p.Fc,p.Slope,p.dx);
+    [sarDB, rangeAxis, x_axis] = sar_RDA(dataCube,Fs,Fc,Slope,dx);
      
     % --- Plot ---
     figure;
@@ -87,6 +93,7 @@ function [SRA_focused, rangeAxis, azAxis] = sar_RDA(cube, fs, fc, slope, dx)
     sarMag = sarMag ./ max(sarMag(:));
     sarDB = 20*log10(sarMag + eps);
 end
+
 
 
 
