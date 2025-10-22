@@ -1,3 +1,18 @@
+%--------------------------------------------------------------------------
+
+% Filename:     sort_data.m
+% Created by:   Matthew Rathbone
+% Version:      2.00
+% Edit date:    21/09/2025
+
+%--------------------------------------------------------------------------
+
+% Description:
+
+% Plots range profiles under varying waveform parameters. 
+
+%--------------------------------------------------------------------------
+
 function [spectrum, range] = rangeProfile(fileName, nSamples, nChirps, nFrames, nFFTTime, bandWidth, sampleFreq, tChirp)       
 
     c = physconst('lightspeed');
@@ -21,5 +36,6 @@ function [spectrum, range] = rangeProfile(fileName, nSamples, nChirps, nFrames, 
         range = (c * f_b) / (2*K);  % Range in meters based on waveform parameters
     end
 end
+
 
 
