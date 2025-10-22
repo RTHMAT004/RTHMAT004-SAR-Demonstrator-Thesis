@@ -1,48 +1,76 @@
-function [xAxis, yAxis, sarImage] = sar1D(fileName, nSamples, nFrames, nChirps, samplingFreq, carrierFreq, nFFTTime)
-    rawData = complex(zeros(nSamples,nChirps,nFrames));
-    unordered = readFromBinFile(fileName, nSamples, nChirps, nFrames);
-    ordered = reshape(unordered, nSamples*2*nChirps, nFrames);
+clc; clear; close all;
+
+p = param_1();
+
+for j = [4]
+    fileName = '.bin';
+    [folder, name, ext] = fileparts(fileName);
+    rawData = zeros(p.nSamples,p.nChirps,p.nFrames);
+    unordered = readFromBinFile(p, fileName);
+    ordered = reshape(unordered, 256*2*128,p.nFrames);
     
-    for i = 1:nFrames
+    for i = 1:p.nFrames
         frame = ordered(:,i);
-        frame = sort_data(frame, nSamples, nChirps, 1, 2); % sort_data assumes 1 frame
+        frame = sort_data(frame, p.nSamples, p.nChirps, 1, 2); % sort_data assumes 1 frame
         rawData(:,:,i) = frame;
+      
     end
+    
+    dataCube = flipud(rawData); % Reorder datacube based on the ReorderEnable feature of the DCA1000's config file.
+    
+    [sarDB, rangeAxis, x_axis] = sar_RDA(dataCube,p.Fs,p.Fc,p.Slope,p.dx);
+     
+    % --- Plot ---
+    figure;
+    imagesc(x_axis, rangeAxis, sarDB);
+    xlabel('Azimuth Bin');
+    ylabel('Range (m)');
+    title('2D Range–Azimuth Focused Image');
+    colormap jet; colorbar;
+    caxis([-60 0]);  
+    axis xy;
 
-    c = physconst('lightspeed');               % speed of light
-    % [nSamples, nChirps, nFrames] = size(rawData);
-
-    %% Range Compression
-    % Windowing function to alter the sidelobes and mainlobe
-    winRange = hamming(nSamples);
-    rawData = rawData .* reshape(winRange, [nSamples,1,1]);
-
-    % FFT along samples (fast time)
-    nFFT = 2^nextpow2(nSamples);
-    rangeFFT = fft(flipud(rawData), nFFT, 1);  % flip if needed
-    rangeFFT = rangeFFT(1:nFFT/2,:,:);          % positive half
-
-    % Average the chirps (2nd dimensions of the array) - coherent
-    % integration
-    rangeProfiles = squeeze(mean(rangeFFT, 2));
-
-    %% Azimuth Compression
-    % Apply azimuth window across frames (slow time)
-    winAz = hamming(nFrames);
-    rangeProfiles = rangeProfiles .* winAz.';
-
-    % FFT across frames (cross-range)
-    azFFT = fftshift(fft(rangeProfiles, nFFTTime, 2), 2);
-
-    %% Magnitude & Normalize
-    % basics of back projection based on magnitude
-    sarImage = 20*log10(abs(azFFT) ./ max(abs(azFFT(:))));
-
-    %% Axes in meters
-    % Range axis
-    freqRes = samplingFreq / nFFT;
-    rg_axis = (0:(nFFT/2-1)) * freqRes;
-    yAxis = c * rg_axis / (2 * carrierFreq);  % approximate
-
-    xAxis = 1:nFrames; 
 end
+function [SRA_focused, rangeAxis, azAxis] = sar_RDA(cube, fs, fc, slope, dx)
+    % cube: [Nsamples × Nchirps × Nframes]
+    % fs: ADC sampling rate
+    % fc: carrier frequency
+    % slope: chirp slope (Hz/s)
+    % dx: aperture step (m)
+    
+    c = 3e8;
+    lambda = c / fc;
+    [NumSamples, Nchirps, Nframes] = size(cube)
+    
+    Ns=512
+    %% Range Compression
+    rangeFFT = fft(cube_win, Ns, 1);
+    SRA = squeeze(mean(rangeFFT, 2)); % Coherent Integration
+
+    %% Create array's for range and azimuth axis depending on the waveform parameters.
+    f = (0:Ns-1).' * fs / Ns;
+    rangeAxis = c * f / (2 * slope);
+    azAxis = dx * (-(Nframes-1)/2 : (Nframes-1)/2) * 1e-3;
+
+    %% Azimuth FFT to spatial frequency domain
+    SRD = fft(SRA, Nframes, 2);   % No windowing/padding here
+
+    %% Create matched filter
+    Rref = sqrt(rangeAxis.^2 + azAxis.^2);
+    hRef = exp(-1i * 4 * pi * Rref / lambda);
+    HRef = fft(hRef, Nframes, 2);
+    HRef_conj = conj(HRef);  
+
+    %% Apply matched filter
+    SRD_focused = SRD .* HRef_conj;
+    
+    %% IFFT back to Range–Azimuth domain
+    SRA_focused = fftshift(ifft(SRD_focused,740,2),2);
+
+    %% Normalise magnitudes
+    sarMag = abs(SRA_focused);
+    sarMag = sarMag ./ max(sarMag(:));
+    sarDB = 20*log10(sarMag + eps);
+end
+
+
