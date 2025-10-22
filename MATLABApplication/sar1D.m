@@ -1,3 +1,18 @@
+%--------------------------------------------------------------------------
+
+% Filename:     sar1D.m
+% Created By:   Matthew Rathbone
+% Version:      2.00
+% Edit date:    21/09/2025
+
+%--------------------------------------------------------------------------
+
+% Description:
+
+% Reconstructs a 2D Image in range and azimuth directions, from a single axis (1D) aperture scan. Stop-and-go method is assumed. 
+
+%--------------------------------------------------------------------------
+
 clc; clear; close all;
 
 p = param_1();
@@ -72,5 +87,6 @@ function [SRA_focused, rangeAxis, azAxis] = sar_RDA(cube, fs, fc, slope, dx)
     sarMag = sarMag ./ max(sarMag(:));
     sarDB = 20*log10(sarMag + eps);
 end
+
 
 
