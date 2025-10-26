@@ -2,7 +2,6 @@
 
 % Filename:     sar2D.m
 % Created By:   Matthew Rathbone
-% Adaptd from:  Muhammet Emin Yanik, Prof. Murat Torlak
 % Version:      1.00
 % Edit date:    22/10/2025
 
@@ -62,4 +61,5 @@ function [azAxis,elevAxis,sarDB] = sar2D(nSamples, nChirps, numXposition, numYpo
     xlabel('Azimuth bins')
     ylabel('Elevation bins')
     axis xy;
+
 end
